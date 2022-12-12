@@ -25,5 +25,13 @@ public class MainActivity extends AppCompatActivity {
                 startService(intent);
             }
         });
+
+        btnStopService.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(MainActivity.this, MyService.class);
+                stopService(intent);
+            }
+        });
     }
 }
