@@ -9,11 +9,15 @@ import android.content.Intent;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
@@ -32,6 +36,9 @@ public class MyService extends Service {
     Notification notification;
     List<Integer> listNumbers;
     boolean isSort = false;
+    Context context;
+    NotificationManager notificationManager;
+    Handler handler;
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -41,11 +48,14 @@ public class MyService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        notification = createNotification(this);
+        context = this;
+        notification = createNotification(this,"Service đang chạy");
         listNumbers = new ArrayList<>();
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 10; i++) {
             listNumbers.add(new Random().nextInt(100) + 1);
         }
+        handler = new Handler(Looper.getMainLooper(), callback);
+        notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         startForeground(1, notification);
     }
 
@@ -53,38 +63,19 @@ public class MyService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (!isSort) {
             isSort = true;
-            sortNumber(listNumbers, new OnSortListener() {
-                @Override
-                public void onFinish(List<Integer> newListNumber) {
-                    String textValue = TextUtils.join(", ", newListNumber);
-                    Log.d("pphat", textValue);
-                    isSort = false;
-                }
-            });
+            new MyThread(handler, listNumbers).start();
         }
         return START_NOT_STICKY;
     }
 
-    private void sortNumber(List<Integer> listNumbers, OnSortListener onSortListener) {
-        boolean isCorrect = true;
-        int indexPlus, tmpValue;
-        for (int i = 0; i < listNumbers.size(); i++) {
-            indexPlus = i + 1;
-            if (indexPlus >= listNumbers.size()) break;
-            if (listNumbers.get(i) > listNumbers.get(indexPlus)) {
-                tmpValue = listNumbers.get(indexPlus);
-                listNumbers.set(indexPlus, listNumbers.get(i));
-                listNumbers.set(i, tmpValue);
-                isCorrect = false;
-            }
+    private Handler.Callback callback = new Handler.Callback() {
+        @Override
+        public boolean handleMessage(@NonNull Message message) {
+            notification = createNotification(context, message.obj.toString());
+            notificationManager.notify(1, notification);
+            return true;
         }
-
-        if (!isCorrect) {
-            sortNumber(listNumbers, onSortListener);
-        } else {
-            onSortListener.onFinish(listNumbers);
-        }
-    }
+    };
 
     @Override
     public void onDestroy() {
@@ -92,12 +83,12 @@ public class MyService extends Service {
         Toast.makeText(this, "onDestroy", Toast.LENGTH_SHORT).show();
     }
 
-    public Notification createNotification(Context context) {
+    public Notification createNotification(Context context, String message) {
         Uri sound = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.nhac_1);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_background)
                 .setContentTitle("Thông báo")
-                .setContentText("Service đang chạy")
+                .setContentText(message)
 //                .setSound(sound)
                 .setPriority(NotificationCompat.PRIORITY_HIGH);
 
@@ -108,9 +99,5 @@ public class MyService extends Service {
             notificationManager.createNotificationChannel(notificationChannel);
         }
         return builder.build();
-    }
-
-    interface OnSortListener {
-        void onFinish(List<Integer> newList);
     }
 }
